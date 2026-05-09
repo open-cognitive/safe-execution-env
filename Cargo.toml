@@ -1,0 +1,11 @@
+[package]
+name = "safe_execution_env"
+version = "0.1.0"
+edition = "2021"
+description = "WebAssembly (WASI) tabanlı %100 izole araç çalıştırma çekirdeği"
+
+[dependencies]
+# Güvenli Sandbox için Wasmtime motoru
+wasmtime = "19.0.0"
+# Kendi donanım protokolümüz
+open_cognitive_protocol = { path = "../protocol" }
