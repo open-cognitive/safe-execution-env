@@ -1,50 +1,48 @@
-//! # Open-Cognitive: Safe Execution Environment (Sistem 3)
-//! 
-//! Bilişsel İşletim Sisteminin "Eylem" (Act) katmanı.
-//! Mantık çekirdeğinin kararları burada donanımsal olarak kısıtlanmış
-//! sanal makinelerde (WASM) fiziksel sonuçlara dönüştürülür.
+//! # Open-Cognitive: Safe Execution Environment - Bus Worker
 
 mod sandbox;
 
 use sandbox::WasmSandbox;
+use open_cognitive_protocol::{CMD_EXECUTE_TOOL, CMD_IDLE};
+use open_cognitive_protocol::ipc::MemoryBus;
 
-fn main() {
-    println!("=== Open-Cognitive Safe Execution Environment Başlatılıyor ===");
-    println!("WASM Sandbox Güvenlik Duvarı Aktif...\n");
-
-    // Sandbox'ı ayağa kaldır
+fn main() -> std::io::Result<()> {
+    println!("=== Open-Cognitive Safe Execution (BUS WORKER) Başlatılıyor ===");
+    
     let sandbox = WasmSandbox::new().expect("Sandbox başlatılamadı!");
+    let mut bus = MemoryBus::new("/tmp/cog.bus")?;
+    println!("[SİSTEM] Sandbox Bellek Otobüsü dinleniyor: /tmp/cog.bus");
 
-    // SİMÜLASYON: Logic Gate Core 'Act' durumunda ve bir matematik aracı çalıştırmak istiyor.
-    // Dışarıdan yüklenen (güvenilmeyen) bir WebAssembly aracı (Tool).
-    // (Aşağıdaki kod, girdiyi alıp 2 ile çarpan saf WebAssembly [WAT] komutlarıdır)
-    let untrusted_tool_code = r#"
+    // Simülasyon için sabit WASM kodu
+    let tool_code = r#"
     (module
       (func $execute (param $input i32) (result i32)
-        ;; Ajanın kullanacağı hesaplama aracı (Tool)
-        ;; Gelen sayıyı al (local.get) ve 2 sabitiyle (i32.const 2) çarp (i32.mul)
         local.get $input
-        i32.const 2
+        i32.const 10
         i32.mul
       )
       (export "execute" (func $execute))
     )
     "#;
 
-    println!("[SİSTEM] Mantık Çekirdeği bir Eylem (Act) komutu gönderdi.");
-    println!("[SANDBOX] 'Hesaplama Aracı' güvenli ortama yükleniyor...");
+    loop {
+        let signal = bus.read_signal();
 
-    let tool_input = 21; // Araca gönderilen görev verisi
-    
-    // Aracı Sandbox içinde çalıştır
-    match sandbox.execute_tool(untrusted_tool_code, tool_input) {
-        Ok(result) => {
-            println!("\n[BAŞARILI] Araç izole ortamda çalıştırıldı!");
-            println!("Girdi: {} -> Araç Çıktısı: {}", tool_input, result);
-            println!("(Çıktı, 'Reflect' yapması için Shared Memory üzerinden Logic Gate'e gönderilecek)");
-        },
-        Err(e) => {
-            eprintln!("\n[GÜVENLİK İHLALİ VEYA HATA] Sandbox yürütmeyi durdurdu: {}", e);
+        if signal.command_type == CMD_EXECUTE_TOOL {
+            println!("\n[SANDBOX] 'Act' (Eylem) emri alındı! İzole araç çalıştırılıyor...");
+            
+            match sandbox.execute_tool(tool_code, 5) {
+                Ok(res) => println!("[BAŞARILI] Araç Çıktısı: {}", res),
+                Err(e) => eprintln!("[HATA] Sandbox yürütmeyi durdurdu: {}", e),
+            }
+
+            // İşi bitirince belleği temizle (ACK)
+            let mut ack_signal = signal;
+            ack_signal.command_type = CMD_IDLE;
+            bus.write_signal(&ack_signal);
+            println!("[SİSTEM] Görev bitti, otobüs temizlendi.");
         }
+
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
 }
