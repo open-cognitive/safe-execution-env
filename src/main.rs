@@ -21,8 +21,8 @@ fn main() -> std::io::Result<()> {
             
             let mut ack_signal = signal;
             
-            // YENİ WASM TARGET İSMİNE GÖRE YOLU GÜNCELLEDİK (wasip1)
-            let wasm_path = "../tool-wasi-sdk/target/wasm32-wasip1/debug/tool_wasi_sdk.wasm";
+            // DÜZELTME: Saf WebAssembly (unknown-unknown) derleme yolunu kullanıyoruz!
+            let wasm_path = "../tool-wasi-sdk/target/wasm32-unknown-unknown/debug/tool_wasi_sdk.wasm";
 
             match sandbox.execute_wasm_file(wasm_path, dynamic_input) {
                 Ok(res) => {
