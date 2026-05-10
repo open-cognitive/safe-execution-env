@@ -27,29 +27,21 @@ fn main() -> std::io::Result<()> {
         let signal = bus.read_signal();
 
         if signal.command_type == CMD_EXECUTE_TOOL {
-            // Dinamik girdiyi bellekten (payload) al!
             let dynamic_input = signal.payload[0] as i32;
-            
             println!("\n[SANDBOX] Görev alındı. İşlenecek Girdi: {}", dynamic_input);
+            
+            let mut ack_signal = signal; // Sinyali kopyala
             
             match sandbox.execute_tool(tool_code, dynamic_input) {
                 Ok(res) => {
                     println!("[BAŞARILI] WASM Çıktısı ({} * 10): {}", dynamic_input, res);
-                    // YENİ: Sonucu Usta'ya (Master) bildirmek için belleğe geri yaz!
-                    let mut ack_signal = signal;
-                    ack_signal.payload[0] = res as u8; // Sonucu çantaya koy
-                    ack_signal.command_type = CMD_IDLE;
-                    bus.write_signal(&ack_signal);
+                    // DÜZELTME BURADA: Sonucu payload'un içine yazıyoruz ki Usta (Master) okuyabilsin!
+                    ack_signal.payload[0] = res as u8; 
                 },
-                Err(e) => {
-                    eprintln!("[HATA] Sandbox yürütmeyi durdurdu: {}", e);
-                    let mut ack_signal = signal;
-                    ack_signal.command_type = CMD_IDLE;
-                    bus.write_signal(&ack_signal);
-                },
+                Err(e) => eprintln!("[HATA] Sandbox yürütmeyi durdurdu: {}", e),
             }
 
-            let mut ack_signal = signal;
+            // Ustaya işlemi bitirdiğimizi haber ver
             ack_signal.command_type = CMD_IDLE;
             bus.write_signal(&ack_signal);
         }
