@@ -5,7 +5,6 @@ edition = "2021"
 description = "WebAssembly (WASI) tabanlı %100 izole araç çalıştırma çekirdeği"
 
 [dependencies]
-# Güvenli Sandbox için Wasmtime motoru
 wasmtime = "19.0.0"
-# Kendi donanım protokolümüz
 open_cognitive_protocol = { path = "../protocol" }
+anyhow = "1.0"  # EKSİK OLAN KÜTÜPHANEYİ EKLEDİK

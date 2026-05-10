@@ -12,17 +12,6 @@ fn main() -> std::io::Result<()> {
     let sandbox = WasmSandbox::new().expect("Sandbox başlatılamadı!");
     let mut bus = MemoryBus::new("/tmp/cog.bus")?;
 
-    let tool_code = r#"
-    (module
-      (func $execute (param $input i32) (result i32)
-        local.get $input
-        i32.const 10
-        i32.mul
-      )
-      (export "execute" (func $execute))
-    )
-    "#;
-
     loop {
         let signal = bus.read_signal();
 
@@ -30,18 +19,20 @@ fn main() -> std::io::Result<()> {
             let dynamic_input = signal.payload[0] as i32;
             println!("\n[SANDBOX] Görev alındı. İşlenecek Girdi: {}", dynamic_input);
             
-            let mut ack_signal = signal; // Sinyali kopyala
+            let mut ack_signal = signal;
             
-            match sandbox.execute_tool(tool_code, dynamic_input) {
+            // YENİ WASM TARGET İSMİNE GÖRE YOLU GÜNCELLEDİK (wasip1)
+            let wasm_path = "../tool-wasi-sdk/target/wasm32-wasip1/debug/tool_wasi_sdk.wasm";
+
+            match sandbox.execute_wasm_file(wasm_path, dynamic_input) {
                 Ok(res) => {
-                    println!("[BAŞARILI] WASM Çıktısı ({} * 10): {}", dynamic_input, res);
-                    // DÜZELTME BURADA: Sonucu payload'un içine yazıyoruz ki Usta (Master) okuyabilsin!
+                    println!("[BAŞARILI] Harici WASM Aracı Çalıştırıldı!");
+                    println!("[BAŞARILI] Araç Çıktısı ({} ^ 2): {}", dynamic_input, res);
                     ack_signal.payload[0] = res as u8; 
                 },
                 Err(e) => eprintln!("[HATA] Sandbox yürütmeyi durdurdu: {}", e),
             }
 
-            // Ustaya işlemi bitirdiğimizi haber ver
             ack_signal.command_type = CMD_IDLE;
             bus.write_signal(&ack_signal);
         }
